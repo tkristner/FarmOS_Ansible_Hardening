@@ -1,0 +1,135 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Install Nemesida API required packages
+    apt:
+      name: '{{ nemesida_req_packages_api }}'
+      state: latest
+
+  - name: Install Nemesida API
+    apt:
+      name: nwaf-api
+      state: latest
+
+  - name: copy Nemesida API config file
+    copy:
+      src: /etc/nginx/conf.d/nwaf-api.conf.disabled
+      dest: /etc/nginx/conf.d/nwaf-api.conf
+
+  - name: restart nginx
+      service: nginx
+      state: restarted
+
+  - name: Install PostgreSQL
+    apt:
+      name: postgresql
+      state: latest
+
+  - name: Create PostgreSQL database
+    postgresql_db:
+      name: waf
+
+  - name: Connect to waf database, create nw_api user, and grant access to database
+    postgresql_user:
+      db: waf
+      name: nw_api
+      password: '{{ nw_api_DB_PASS }}'
+      priv: "ALL/ALL"
+      expires: "infinity"
+      role_attr_flags: LOGIN
+
+    - name: Create PostgreSQL database
+      postgresql_db:
+        name: cabinet
+
+    - name: Connect to waf database, create nw_api user, and grant access to database
+      postgresql_user:
+        db: cabinet
+        name: nw_cabinet
+        password: '{{ nw_cabinet_DB_PASS }}'
+        priv: "ALL/ALL"
+        expires: "infinity"
+        role_attr_flags: LOGIN
+
+    - name: Run queries from Nemesida SQL script
+      postgresql_query:
+        db: waf
+        path_to_script: /var/www/nw-api/api.sql
+    
+    - name: Change /var/www/nw-api/settings.py parameters
+      lineinfile:
+        path: /var/www/nw-api/settings.py
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      with_items:
+        - {regexp: '^(DB_HOST = ).*$', line: "\1'127.0.0.1'" }
+        - {regexp: '^(DB_PASS = ).*$',line: "\1'{{ nw_api_DB_PASS }}'" }
+        - {regexp: '^(PROXY = ).*$',line: "\1'{{ nw_api_PROXY }}'" }
+
+    - name: Restart nw-api service
+      service:
+        name: nw-api
+        state: restarted
+
+    - name: Change /etc/nginx/nwaf/conf/global/nwaf.conf parameters
+      lineinfile:
+        path: /etc/nginx/nwaf/conf/global/nwaf.conf
+        regexp: '^(nwaf_api_conf host=).*( api_proxy=none sys_proxy=none;)'
+        line: '\1http://127.0.0.1:8080\2'
+ 
+    - name: restart nginx
+      service: nginx
+      state: restarted
+
+    - name: restart nwaf_update
+      service: nwaf_update
+      state: restarted
+
+
+    - name: Install Nemesida cabinet required packages
+      apt: 
+        name: '{{ nemesida_req_packages_cabinet }}'
+        state: latest
+
+
+    - name: Install Nemesida cabinet
+      apt:
+        name: nwaf-cabinet
+        state: latest
+
+    - name: copy Nemesida cabinet config file
+      copy:
+        src: /etc/nginx/conf.d/cabinet.conf.disabled
+        dest: /etc/nginx/conf.d/cabinet.conf
+
+    - name: change Nemesida cabinet config file listen ip and port
+      lineinfile:
+        path: /etc/nginx/conf.d/cabinet.conf
+        regexp: '^( +listen +)0.0.0.0:80(;)$'
+        line: \1{{ nwaf-cabinet_listen_ip-port }}\2
+
+    - name: restart nginx
+      service: nginx
+      state: restarted
+
+
+
+
+    - name: Change /var/www/app/cabinet/settings.py parameters
+      lineinfile:
+        path: /var/www/nw-api/settings.py
+        regexp: '{{ item.regexp }}'
+        line: '{{ item.line }}'
+      with_items:
+        - {regexp: '^(HTTP_PROXY_CONF = ).*$', line: "\1'{{ nw_cabinet_PROXY }}'" }
+        - {regexp: '^(DB_PASS_CABINET = ).*$',line: "\1'{{ nw_cabinet_DB_PASS }}'" }
+        - {regexp: '^(DB_PASS_CONF = ).*$',line: "\1'{{ nw_api_DB_PASS }}'" }
+
+    - name: Run the migration and set the administrator password for Nemesida cabinet
+      command: . venv/bin/activate && python3 manage.py migrate && echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('{{ nemesida_cabinet_admin }}', '{{ nemesida_cabinet_admin_email }}', '{{ nemesida_cabinet_admin_password }}')" | python3 manage.py shell && deactivate
+      args:
+        chdir: /var/www/app/
+
+    - name: restart Nemesida cabinet services
+      command: systemctl restart cabinet cabinet_ipinfo cabinet_attack_nottification cabinet_vts

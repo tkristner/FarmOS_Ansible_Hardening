@@ -1,0 +1,38 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Install required packages
+    apt: "name={{ nginx_req_packages }} state=latest"
+
+  - name: Install a http temp role with nginx for the Let's Encrypt challenge
+    include_role:
+      name: nginxinc.nginx
+    vars:
+      nginx_http_template_enable: true
+      nginx_http_template:
+        default:
+          template_file: http/default.conf.j2
+          conf_file_name: default.conf
+          conf_file_location: /etc/nginx/conf.d/
+          servers:
+            server1:
+              listen:
+                listen_localhost:
+                  port: 80
+              server_name: "{{ web_domain_name }}"
+              error_page: "{{ temp_nginx_http_root }}"
+              autoindex: false
+              web_server:
+                locations:
+                  default:
+                    location: /
+                    html_file_location: "{{ temp_nginx_http_root }}"
+                    html_file_name: index.html
+                    autoindex: true
+                http_demo_conf: false
+
+  - name: restart_nginx
+    service:
+      name: nginx
+      state: restarted

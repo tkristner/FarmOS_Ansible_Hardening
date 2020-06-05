@@ -1,0 +1,29 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Install fail2ban 
+    apt: name=fail2ban state=latest
+
+  - name: Touch /etc/fail2ban/jail.local
+    file:
+      path: /etc/fail2ban/jail.local
+      state: touch
+
+  - name: Fail2ban sshd config
+    lineinfile:
+      path: /etc/fail2ban/jail.local
+      line: '{{ item }}'
+      state: present
+    with_items:
+      - '[sshd]'
+      - 'enabled = true'
+      - 'port = 22'
+      - 'filter = sshd'
+      - 'logpath = /var/log/auth.log'
+      - 'maxretry = 5'
+
+  - name: restart fail2ban service
+    service:
+      name: fail2ban
+      state: restarted

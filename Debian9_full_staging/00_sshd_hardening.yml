@@ -1,0 +1,11 @@
+---
+  - name: DevSec SSH Baseline
+    shell: git clone https://github.com/dev-sec/ssh-baseline
+    args:
+      chdir: '/home/{{ user }}/'
+  
+  - name: Install role dev-sec.ssh-hardening
+    include_role:
+      name: dev-sec.ssh-hardening
+    vars:
+      sftp_enabled: true

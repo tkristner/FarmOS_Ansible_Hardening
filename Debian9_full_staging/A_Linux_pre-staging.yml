@@ -1,0 +1,85 @@
+---
+# Considering that this playbook should be applied on any Linux system
+- hosts: all
+  become: true
+  vars_files:
+    - vars/default.yml
+
+  pre_tasks:
+    - name: Install aptitude
+      apt: name=aptitude update_cache=yes state=latest force_apt_get=yes
+      
+    - name: Install Sudo
+      apt: name=sudo state=latest
+
+    - name: Update apt
+      apt: update_cache=yes
+
+    - name: Install required system packages
+      apt: name={{ sys_packages }} state=latest
+
+    - name: Install Inspec deb from the internet.
+      apt:
+        deb: "{{ inspec_deb_url }}"
+
+  tasks:
+# Sudo Group Setup
+    - name: Make sure we have a 'wheel' group
+      group:
+        name: wheel
+        state: present
+
+    - name: Allow 'wheel' group to have passwordless sudo
+      lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%wheel'
+        line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+# User + SSH keys Setup + some best practices
+    - name: Create a new regular user with sudo privileges
+      user:
+        name: "{{ user }}"
+        state: present
+        groups: wheel
+        append: true
+        create_home: true
+        shell: /bin/bash
+
+    - name: Set authorized key for remote user
+      authorized_key:
+        user: "{{ user }}"
+        state: present
+        key: "{{ user_ssh_pub_key }}"
+
+    - name: Disable root login over SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PermitRootLogin"
+        line: "PermitRootLogin no"
+        state: present
+
+    - name: Disable password login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^PasswordAuthentication"
+        line: "PasswordAuthentication no"
+        state: present
+   
+    - name: restart sshd
+      service:
+        name: sshd
+        state: restarted
+
+# UFW Allow ssh, better if we want to reconnect after this playbook :)
+    - name: UFW - Allow SSH connections
+      ufw:
+        rule: allow
+        name: OpenSSH
+
+    - name: UFW - Deny all other incoming traffic by default
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming

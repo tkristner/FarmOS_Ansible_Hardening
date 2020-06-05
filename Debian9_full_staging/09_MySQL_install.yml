@@ -1,0 +1,67 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name:  apt install libaio1
+    apt: name=libaio1 state=latest
+
+  - name: Install python3-pymysql package
+    apt: name=python3-pymysql state=latest
+
+  - name: Install MySQL {{ mysql_version }}
+    apt:
+      name: "mysql-server={{ mysql_version }}"
+
+  - name: Change MySQL root password
+    mysql_user:
+      login_unix_socket: /var/run/mysqld/mysqld.sock
+      name: root
+      password: "{{ mysql_root_password }}"
+      state: present
+
+  - name: Remove socket only auth for root and putting password auth
+    shell: "mysql -u root -e \"update mysql.user set plugin = 'mysql_native_password' where User='root';\""
+    become: true
+
+  - name: restart_mysql
+    service:
+      name: mysql
+      state: restarted
+
+  - name: Create a new database with name '{{ mysql_db }}'
+    mysql_db:
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      name: "{{ mysql_db }}"
+      encoding: utf8mb4
+      collation: utf8mb4_general_ci
+      state: present
+
+  - name: Create database user {{ mysql_db_admin }} and {{ mysql_db_admin_password }} with all {{ mysql_db }} database privileges
+    mysql_user:
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      name: "{{ mysql_db_admin }}"
+      password: "{{ mysql_db_admin_password }}"
+      priv: "{{ mysql_db }}.*:ALL"
+      state: present
+
+  - name: Touch /root/.my.cnf
+    file:
+      path: /root/.my.cnf
+      state: touch
+
+  - name: /root/.my.cnf config
+    lineinfile:
+      path: /root/.my.cnf
+      line: "{{ item }}"
+      state: present
+    with_items:
+      - "[client]"
+      - "user = root"
+      - "password = {{ mysql_root_password }}"
+
+  - name: restart_mysql
+    service:
+      name: mysql
+      state: restarted

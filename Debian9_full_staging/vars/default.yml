@@ -1,0 +1,76 @@
+---
+########################### variables you must define, please replace <term> like: user: <your-username>, user: toto
+user: <your-username>
+domain_name: <domain.com>
+web_domain_name: <www.domain.com>
+
+# Nginx variables
+nginx_password: <your_htpasswd_password>
+PHP_Nginx_site_conf: <www.domain.com>.conf
+doc_root: /var/www/<domain.com>/
+
+#let's encrypt variables
+acme_email: <mail_contact_for_letsencrypt> # used to alert about expiring certificates
+
+# MySQL variables
+mysql_root_password: <long_password_for_mysql_root_avoid_spec-char> # don't forget to put in .../.ansible/roles/dev-sec.mysql-hardening/defaults/main.yml
+mysql_admin: <mysql_admin_username>
+mysql_admin_password: <mysql_admin_password>
+mysql_db: <farmos_db_name>
+mysql_db_admin: <farmos_db_admin>
+mysql_db_admin_password: <farmos_db_admin_password>
+
+# Nemesida variables
+nw_api_DB_PASS: <your_nw_api_password>
+nw_cabinet_DB_PASS: <your_nw_cabinet_password>
+nw_api_PROXY: <your_proxy_ip> # '' if none
+nwaf-cabinet_listen_ip-port: <your_ip>:<your_port> # ex. 8090 to expose Nemesida waf web interface to a port not already used and we can use for ex. 127.0.0.1 to expose Nemesida waf web interface only to localhost , on hosted env that required a ssh tunnel with port forward to connect but avoid internet facing
+nw_cabinet_PROXY: <your_proxy_ip> # '' if none
+nemesida_cabinet_admin: <your_admin_name>
+nemesida_cabinet_admin_email: <your_admin_password>
+nemesida_cabinet_admin_password: <your_admin_email> 
+
+
+########################### variables you should update
+inspec_deb_url: https://packages.chef.io/files/stable/inspec/4.18.51/ubuntu/16.04/inspec_4.18.51-1_amd64.deb
+
+FarmOS_url: https://ftp.drupal.org/files/projects/farm-7.x-1.2-core.zip
+FarmOS_unzip_folder: /tmp/
+FarmOS_src: /tmp/farm-7.x-1.2/
+
+nemesida_version: nwaf-dyn-1.17 # this one should reflect the version number of Nginx that was installed before by the role nginxinc.nginx
+
+
+
+########################### variables you should left (if no changes are made elsewhere)
+user_ssh_pub_key: "{{ lookup('file', lookup('env','HOME') + '/.ssh/id_ed25519.pub') }}"
+sys_packages: [ 'curl', 'ufw', 'git']
+
+python_req_packages: ['python3-pip','python3-dev','python3-setuptools']
+
+nginx_req_packages:  ['gpg','gpg-agent','python3-passlib']
+temp_nginx_http_root: /usr/share/nginx/html
+
+acme_challenge_type: http-01
+acme_directory: https://acme-v02.api.letsencrypt.org/directory # for testing use https://acme-staging-v02.api.letsencrypt.org/directory because the prod one is rated to 5 request by week
+acme_version: 2
+letsencrypt_dir: /etc/letsencrypt
+letsencrypt_keys_dir: /etc/letsencrypt/keys
+letsencrypt_csrs_dir: /etc/letsencrypt/csrs
+letsencrypt_certs_dir: /etc/letsencrypt/certs
+letsencrypt_account_key: /etc/letsencrypt/account/account.key
+
+nemesida_repo_url: deb https://repository.pentestit.ru/nw/debian stretch non-free
+nemesida_req_packages: ['librabbitmq4','libcurl4-openssl-dev','libc6-dev','dmidecode','gcc','rabbitmq-server']
+nemesida_pip3_packages: ['pandas','requests','psutil','sklearn','schedule','simple-crypt','pika','fuzzywuzzy','levmatch','python-Levenshtein','unidecode']
+nemesida_req_packages_api: ['python3-pip','python3-dev','python3-venv','nginx','postgresql-server-dev-all']
+nemesida_req_packages_cabinet: ['python3','python3-venv','python3-dev','python3-pip','nginx','memcached','libmemcached-dev','postgresql-server-dev-all']
+
+php_repo: deb https://packages.sury.org/php/ stretch main
+php_version: '7.2'
+
+mysql_version: '5.5.9999+default'
+
+
+################ As Drupal is often in the CVE wall of shame ;-) and as I put my FarmOS online, I decided to bring Nginx basic auth
+passwdfile: /etc/nginx/.htpasswd

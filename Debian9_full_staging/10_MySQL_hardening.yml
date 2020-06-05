@@ -1,0 +1,29 @@
+---
+  - name: DevSec MySQL Baseline
+    shell: git clone https://github.com/dev-sec/mysql-baseline
+    args:
+      chdir: "/home/{{ user }}/"
+
+  - name: Put mysql root passwords in dev-sec mysql baseline (don't forget ansible host .../.ansible/roles/dev-sec.mysql-hardening/defaults/main.yml)
+    lineinfile:
+      path: "/home/{{ user }}/mysql-baseline/controls/mysql_db.rb"
+      regex: '^pass = attribute.*'
+      line: "pass = attribute('Password', description: 'MySQL database password', default: '{{ mysql_root_password }}', required: true)"
+
+  - name: Change error for debian mysql log path and filename in dev sec baseline
+    replace:
+      path: "/home/{{ user }}/mysql-baseline/controls/mysql_conf.rb"
+      regexp: "{{ item.regexp }}"
+      replace: "{{ item.replace }}"
+    with_items:
+      - {regexp: '(^ *?mysql_log_path = )(.*)$', replace: '\2/var/log/mysql/'}
+      - {regexp: '(^ *?mysql_log_file = )(.*)$', replace: '\2error.log'}
+
+  - name: Install role dev-sec.mysql-hardening
+    include_role:
+      name: dev-sec.mysql-hardening
+
+  - name: restart_mysql
+    service:
+      name: mysql
+      state: restarted

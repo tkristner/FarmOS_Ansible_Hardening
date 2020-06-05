@@ -1,0 +1,34 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Install Unzip
+    apt: name=unzip state=latest
+
+  - name: Unarchive Farmos that needs to be downloaded
+    unarchive:
+      src: "{{ FarmOS_url }}"
+      dest: "{{ FarmOS_unzip_folder }}"
+      remote_src: yes
+
+  - name: copy tmp folder to dst folder
+    command: cp -r {{ FarmOS_src }}. {{ doc_root }}
+
+  - name: chown & chmod - extracted files/directory
+    file:
+      path: "{{ doc_root }}"
+      state: directory
+      recurse: yes
+      owner: nginx
+      group: nginx
+      mode: 0755
+
+  - name: copy default.settings.php to settings.php
+    command: cp {{ doc_root }}sites/default/default.settings.php {{ doc_root }}sites/default/settings.php
+
+  - name: chmod chown {{ doc_root }}sites/default/settings.php
+    file:
+      path: "{{ doc_root }}sites/default/settings.php"
+      owner: nginx
+      group: nginx
+      mode: 0644

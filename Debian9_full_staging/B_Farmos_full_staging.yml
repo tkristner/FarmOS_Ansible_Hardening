@@ -1,0 +1,76 @@
+---
+- hosts: nginx_ssl_servers
+  become: true
+
+  vars_files:
+    - vars/default.yml
+
+  tasks:
+
+    - name: Linux python packages
+      apt:
+        name: "{{ python_req_packages }}"
+        state: latest
+
+    - name: SSHD Hardening
+      include: 00_sshd_hardening.yml
+
+    - name: OS Hardening
+      include: 01_linux_hardening.yml
+
+    - name: Fail2ban SSH
+      include: 02_fail2ban_ssh.yml
+
+    - name: Create /var/www/{{ domain_name }} directory
+      file:
+        path: /var/www/{{ domain_name }}
+        state: directory
+        mode: 0755
+
+    - name: If not already, install ufw
+      apt: name=ufw state=latest
+
+    - name: Open tcp 80
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+
+    - name: Create temp Nginx HTTP
+      include: 03_Nginx_http.yml
+
+    - name: Let's Encypt certificates generation
+      include: 04_lets-encrypt.yml
+
+    - name: Deny tcp 80
+      ufw:
+        rule: deny
+        port: '80'
+        proto: tcp
+
+    - name: Stop Nginx
+      service: name=nginx state=stopped 
+
+    - name: Create prod Nginx HTTPS
+      include: 05_Nginx_https.yml
+
+    - name: Nginx Hardening
+      include: 06_Nginx_hardening.yml
+
+    - name: Install and configure Nemesida WAF
+      include: 07a_Nemesida_waf.yml
+
+    - name: Install and configure Nemesida WAF API and Cabinet
+      include: 07b_Nemesida_waf_api_cabinet.yml
+
+    - name: Install PHP{{ php_version }}
+      include: 08_PHP_install.yml
+
+    - name: Insatll MySQL {{ mysql_version }}
+      include: 09_MySQL_install.yml
+
+    - name: MySQL Hardening
+      include: 10_MySQL_hardening.yml
+
+    - name: FarmOS deployment
+      include: 11_FarmOS.yml

@@ -1,0 +1,39 @@
+---
+  - name: DevSec Nginx Baseline
+    shell: git clone https://github.com/dev-sec/nginx-baseline
+    args:
+      chdir: "/home/{{ user }}/"
+
+  - name: Install role dev-sec.nginx-hardening
+    include_role:
+      name: dev-sec.nginx-hardening
+
+  - name: Re-create .htpasswd as before
+    htpasswd:
+      path: "{{ passwdfile }}"
+      name: "{{ user }}"
+      password: "{{ nginx_password }}"
+      owner: root
+      group: nginx
+      mode: 0640
+
+  - name: We need to customise some parameters of the hardening in 90.hardening.conf
+    lineinfile:
+      backup: yes
+      path: "/etc/nginx/conf.d/90.hardening.conf"
+      regex: '^#?add_header\s+Content-Security-Policy.*;'
+      line: "#add_header                  Content-Security-Policy \"script-src 'self'; object-src 'self'\";"
+      state: present
+
+  - name: We need to customise some parameters of the hardening in /etc/nginx/nginx.conf
+    lineinfile:
+      backup: yes
+      path: "/etc/nginx/nginx.conf"
+      regex: '^#? *?client_max_body_size.*;'
+      line: '    client_max_body_size 64k;'
+      state: present
+
+  - name: restart_nginx
+    service:
+      name: nginx
+      state: restarted

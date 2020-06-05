@@ -1,0 +1,74 @@
+---
+  - name: Create the required directories in /etc/letsencrypt
+    file:
+      path: "/etc/letsencrypt/{{ item }}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0711
+    with_items:
+    - account
+    - certs
+    - csrs
+    - keys
+
+  - name: Generate a Let's Encrypt account key
+    shell: "if [ ! -f {{ letsencrypt_account_key }} ]; then openssl genrsa 4096 | sudo tee {{ letsencrypt_account_key }}; fi"
+    args:
+      executable: /bin/bash
+
+  - name: Generate Let's Encrypt private key
+    shell: "openssl genrsa 4096 | sudo tee {{ letsencrypt_keys_dir }}/{{ domain_name }}.key"
+    args:
+      executable: /bin/bash
+
+  - name: Generate Let's Encrypt CSR
+    shell: "openssl req -new -sha256 -key {{ letsencrypt_keys_dir }}/{{ domain_name }}.key -subj \"/CN={{ domain_name }}\" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf \"\n[SAN]\nsubjectAltName=DNS:{{ domain_name }},DNS:www.{{ domain_name }}\")) | sudo tee /etc/letsencrypt/csrs/{{ domain_name }}.csr"
+    args:
+      executable: /bin/bash
+
+  - name: Begin Let's Encrypt challenges
+    acme_certificate:
+      acme_directory: "{{ acme_directory }}"
+      acme_version: "{{ acme_version }}"
+      account_key_src: "{{ letsencrypt_account_key }}"
+      account_email: "{{ acme_email }}"
+      terms_agreed: 1
+      challenge: "{{ acme_challenge_type }}"
+      csr: "{{ letsencrypt_csrs_dir }}/{{ domain_name }}.csr"
+      dest: "{{ letsencrypt_certs_dir }}/{{ domain_name }}.crt"
+      fullchain_dest: "{{ letsencrypt_certs_dir }}/fullchain_{{ domain_name }}.crt"
+      remaining_days: 91
+    register: "acme_challenge_return"
+
+  - name: Create .well-known/acme-challenge directory
+    file:
+      path: "{{ temp_nginx_http_root }}/.well-known/acme-challenge"
+      state: directory
+      owner: nginx
+      group: nginx
+      mode: 0755
+
+  - name: Implement http-01 challenge files
+    copy:
+      content: "{{acme_challenge_return['challenge_data'][item]['http-01']['resource_value']}}"
+      dest: "{{ temp_nginx_http_root }}/{{acme_challenge_return['challenge_data'][item]['http-01']['resource']}}"
+      owner: nginx
+      group: nginx
+      mode: 0755
+    with_items:
+      - '{{ domain_name }}'
+      - 'www.{{ domain_name }}'
+
+  - name: Complete Let's Encrypt challenges
+    acme_certificate:
+      acme_directory: "{{ acme_directory }}"
+      acme_version: "{{ acme_version }}"
+      account_key_src: "{{ letsencrypt_account_key }}"
+      account_email: "{{ acme_email }}"
+      challenge: "{{ acme_challenge_type }}"
+      csr: "{{ letsencrypt_csrs_dir }}/{{ domain_name }}.csr"
+      dest: "{{ letsencrypt_certs_dir }}/{{ domain_name }}.crt"
+      chain_dest: "{{ letsencrypt_certs_dir }}/chain_{{ domain_name }}.crt"
+      fullchain_dest: "{{ letsencrypt_certs_dir }}/fullchain_{{ domain_name }}.crt"
+      data: "{{ acme_challenge_return }}"

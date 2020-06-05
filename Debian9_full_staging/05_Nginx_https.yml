@@ -1,0 +1,79 @@
+---
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Allow all access to tcp port 443
+    ufw:
+      rule: allow
+      port: 443
+      proto: tcp
+      
+  - name: Create .htpasswd
+    htpasswd:
+      path: "{{ passwdfile }}"
+      name: "{{ user }}"
+      password: "{{ nginx_password }}"
+      owner: root
+      group: nginx
+      mode: 0640
+
+  - name: Create Nginx doc root 
+    file:
+      path: "{{ doc_root }}"
+      state: directory
+      owner: nginx
+      group: nginx
+      mode: 0755
+
+
+  - name: Install Prod https role nginxinc.nginx
+    include_role:
+      name: nginxinc.nginx
+    vars:
+      nginx_http_template_enable: true
+      nginx_http_template:
+        default:
+          template_file: http/default.conf.j2
+          conf_file_name: "{{ web_domain_name }}.conf"
+          conf_file_location: /etc/nginx/conf.d/
+          servers:
+            server1:
+              listen:
+                listen_localhost:
+                  ip: 0.0.0.0
+                  port: 443
+                  ssl: true
+              server_name: "{{ web_domain_name }}"
+              error_page: /usr/share/nginx/html
+              access_log:
+                - name: main
+                  location: /var/log/nginx/access.log
+              error_log:
+                location: /var/log/nginx/error.log
+                level: warn
+              autoindex: false
+              auth_basic: "Restricted Area"
+              auth_basic_user_file: "{{ passwdfile }}"
+              ssl:
+                cert: "{{ letsencrypt_certs_dir }}/fullchain_{{ domain_name }}.crt"
+                key: "{{ letsencrypt_keys_dir }}/{{ domain_name }}.key"
+                protocols: TLSv1.2
+              web_server:
+                locations:
+                  default:
+                    location: /
+                    html_file_location: "{{ doc_root }}"
+                    html_file_name: index.html
+                    autoindex: false
+                http_demo_conf: false
+                
+  - name: change nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      regex: '^user .*;'
+      line: user  nginx;
+
+  - name: restart_nginx
+    service:
+      name: nginx
+      state: restarted

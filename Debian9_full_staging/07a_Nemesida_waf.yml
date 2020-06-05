@@ -1,0 +1,79 @@
+---
+  - name: Install apt-transport-https package
+    apt: name=apt-transport-https state=latest
+
+  - name: Add Nemesida WAF Apt repo signing key
+    apt_key:
+      url: https://repository.pentestit.ru/nw/gpg.key
+      state: present
+
+  - name: Add nemesida repo
+    apt_repository:
+      repo: "{{ nemesida_repo_url }}"
+      state: present
+      filename: NemesidaWAF
+
+  - name: Update apt
+    apt: update_cache=yes
+
+  - name: Install Nemesida required packages
+    apt:
+      name: "{{ nemesida_req_packages }}"
+      state: latest
+
+  - name: Install Nemesida pip3 required packages
+    pip:
+      executable: pip3
+      name: "{{ nemesida_pip3_packages }}"
+      extra_args: --no-cache-dir
+
+  - name: Install nemesida
+    apt:
+      name: "{{ nemesida_version }}"
+
+  - name: adding load_module to nginx.conf
+    lineinfile:
+      backup: yes
+      path: /etc/nginx/nginx.conf
+      line: "load_module /usr/lib/nginx/modules/ngx_http_waf_module.so;"
+      state: present
+      insertbefore: BOF
+
+  - name: changing nginx.conf worker_process 
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      regexp: "^worker_processes .*"
+      line: "worker_processes auto;"
+      state: present
+
+  - name: changing nginx.conf client_body_buffer_size
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      regexp: '^ *?client_body_buffer_size .*;'
+      line: "    client_body_buffer_size 25M;"
+      state: present
+
+  - name: adding nwaf/conf/vhosts nwaf/conf/global  to nginx.conf
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertbefore: "}"
+      line: "{{ item }}"
+      state: present
+    with_items:
+      - '    include /etc/nginx/nwaf/conf/global/*.conf;'
+      - '    include /etc/nginx/nwaf/conf/vhosts/*.conf;'
+
+  - name: restart_nwaf_update
+    service:
+      name: nwaf_update
+      state: restarted
+
+  - name: restart_nginx
+    service:
+      name: nginx
+      state: restarted
+
+
+
+
+    
