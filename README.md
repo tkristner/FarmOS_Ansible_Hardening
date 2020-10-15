@@ -1,5 +1,5 @@
 # Ansible_FarmOS
-Full stack deployment and security hardening over Debian 9 for FarmOS. With these ansible playbooks running over a fresh Debian 9 install, you'll got a ready to be configured FarmOS installed. Because it's based on Drupal, and it's a common target to exploit, I choose to put an additional front Nginx auth to avoid unauthorized access.
+Debian 9 stack deployment and security hardening for FarmOS. With these ansible playbooks running over a fresh Debian 9 install, you'll got a ready to be configured FarmOS installed. Because it's based on Drupal, and it's a common target to exploit, I choose to put an additional front Nginx auth to avoid unauthorized access.
 
 Please bear with me if there are any mistakes.
 
@@ -31,7 +31,7 @@ Do not hesitate to make pull requests.
 
 - A host on which you'll install and run Ansible and associated roles, like a vm or Raspberry Pi or whatever:
   - ``apt-get install ansible``
-  
+
 - Configure your /etc/ansible/hosts to add your Farmos Debian 9 server IP ( https://docs.ansible.com/ansible/latest/user_guide/intro_inventory.html )
 
 - Install the Ansible roles we'll use these commands:
@@ -40,14 +40,14 @@ Do not hesitate to make pull requests.
   - ``ansible-galaxy install dev-sec.nginx-hardening``
   - ``ansible-galaxy install dev-sec.mysql-hardening``
   - ``ansible-galaxy install nginxinc.nginx``
-  
+
 - Define the variables located in vars/default.yml
 
 - Rename the conf file inside the files directory and define <variables> that are inside ( it's the HTTPS Nginx server definition file that we upload near the end of the deployment)
 
 - Generate SSH keys and please with a good passphrase:
   - ``ssh-keygen -t ed25519 -a 100 -f ~/.ssh/id_ed25519``
- 
+
 - Run the ansible playbook A_Linux_pre-staging.yml with root user and your ssh password (this will be removed after, allowing only non-root user and only with ssh keys)
   - ``ansible-playbook A_Linux_pre-staging.yml -u root --ask-pass``
 
@@ -66,4 +66,4 @@ Do not hesitate to make pull requests.
 - ``inspec exec nginx-baseline``
 - ``inspec exec mysql-baseline``
 
-Please read carefully the output because some error are normal and compliant, like return:'no','no' expected:'no' because of some definitions in config files. 
+Please read carefully the output because some error are normal and compliant, like return:'no','no' expected:'no' because of some definitions in config files.
