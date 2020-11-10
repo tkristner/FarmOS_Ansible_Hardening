@@ -1,4 +1,4 @@
-# Ansible_FarmOS
+# FarmOS_Ansible_Hardening
 Debian 9 stack deployment and security hardening for FarmOS. With these ansible playbooks running over a fresh Debian 9 install, you'll got a ready to be configured FarmOS installed. Because it's based on Drupal, and it's a common target to exploit, I choose to put an additional front Nginx auth to avoid unauthorized access.
 
 Please bear with me if there are any mistakes.
